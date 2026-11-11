@@ -18,3 +18,11 @@ Kelompok 10:
 - Arya Sheva Islami Pasya (2506644614)
 1. Frontend
 2. Backend
+
+
+
+Week 2:
+- Membuat project file LibGDX.
+- Membuat layout dari stagenya yang terdiri dari kotak-kotak abu-abu, merah, dan hijau.
+- Menambahkan sistem menembak dan bullet bagi enemy dan player
+- Menambahkan player dan enemy
