@@ -62,7 +62,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         this.bulletPool = new BulletPool();
         this.enemyPool = new EnemyPool();
         this.gridArena = new ColourGridArena(ARENA_WIDTH, ARENA_HEIGHT);
-        this.player = new Player(ARENA_WIDTH * 0.5f - 14f, 80f, ARENA_WIDTH, ARENA_HEIGHT);
+        this.player = new Player(ARENA_WIDTH * 0.5f - 16f, 220f, ARENA_WIDTH, ARENA_HEIGHT);
         this.bestCompletionTime = -1f;
         this.highScore = 0;
 
@@ -90,7 +90,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
         bulletPool.freeAll();
         enemyPool.freeAll();
-        player.reset(ARENA_WIDTH * 0.5f - 14f, 80f);
+        player.reset(ARENA_WIDTH * 0.5f - 16f, 220f);
 
         setupRound(currentRound);
     }
@@ -111,11 +111,11 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
     private void ensureThreeEnemies() {
         float[] spawnXs = new float[] {
-            ARENA_WIDTH * 0.25f - 16f,
+            ARENA_WIDTH * 0.38f - 16f,
             ARENA_WIDTH * 0.50f - 16f,
-            ARENA_WIDTH * 0.75f - 16f
+            ARENA_WIDTH * 0.62f - 16f
         };
-        float spawnY = 620f;
+        float spawnY = 540f;
 
         List<Enemy> activeEnemies = enemyPool.getActiveObjects();
         for (float spawnX : spawnXs) {
@@ -269,19 +269,23 @@ public class GameManager implements ColourGridArena.BlueGridListener {
                     }
                 }
             } else {
-                // Enemy bullet -> check against player
+                // Enemy bullet -> check against player (invincible during dodge roll)
                 if (bullet.getBounds().overlaps(player.getBounds())) {
-                    player.takeDamage(bullet.getDamage());
-                    bullet.setActive(false);
+                    if (!player.isDodgeRolling()) {
+                        player.takeDamage(bullet.getDamage());
+                        bullet.setActive(false);
+                    }
                 }
             }
         }
 
-        // Direct Enemy-Player contact damage
+        // Direct Enemy-Player contact damage (invincible during dodge roll)
         for (int j = 0; j < activeEnemies.size(); j++) {
             Enemy enemy = activeEnemies.get(j);
             if (enemy.isActive() && enemy.getBounds().overlaps(player.getBounds())) {
-                player.applyRedGridDamage(12f);
+                if (!player.isDodgeRolling()) {
+                    player.applyRedGridDamage(12f);
+                }
             }
         }
     }
