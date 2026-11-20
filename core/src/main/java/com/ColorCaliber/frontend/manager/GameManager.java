@@ -117,19 +117,11 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         };
         float spawnY = 540f;
 
-        List<Enemy> activeEnemies = enemyPool.getActiveObjects();
-        for (float spawnX : spawnXs) {
-            boolean slotOccupied = false;
-            for (int i = 0; i < activeEnemies.size(); i++) {
-                Enemy e = activeEnemies.get(i);
-                if (e.isActive() && Math.abs(e.getX() - spawnX) < 30f) {
-                    slotOccupied = true;
-                    break;
-                }
-            }
-            if (!slotOccupied) {
-                enemyPool.spawnEnemy(EnemyType.SHOOTER, spawnX, spawnY, 1, ARENA_WIDTH, ARENA_HEIGHT);
-            }
+        int slotIdx = 0;
+        while (enemyPool.getActiveCount() < 3) {
+            float spawnX = spawnXs[slotIdx % spawnXs.length];
+            slotIdx++;
+            enemyPool.spawnEnemy(EnemyType.SHOOTER, spawnX, spawnY, 1, ARENA_WIDTH, ARENA_HEIGHT);
         }
     }
 
@@ -225,6 +217,31 @@ public class GameManager implements ColourGridArena.BlueGridListener {
             Enemy enemy = activeEnemies.get(i);
             if (enemy.isActive()) {
                 enemy.updateAI(delta, player, bulletPool);
+                gridArena.clampToIsometricStage(enemy);
+            }
+        }
+
+        // Keep enemies from overlapping each other
+        for (int i = 0; i < activeEnemies.size(); i++) {
+            Enemy a = activeEnemies.get(i);
+            if (!a.isActive()) continue;
+            for (int j = i + 1; j < activeEnemies.size(); j++) {
+                Enemy b = activeEnemies.get(j);
+                if (!b.isActive()) continue;
+                float dx = b.getCenterX() - a.getCenterX();
+                float dy = b.getCenterY() - a.getCenterY();
+                float minDist = 36f;
+                float distSq = dx * dx + dy * dy;
+                if (distSq > 0.0001f && distSq < minDist * minDist) {
+                    float dist = (float) Math.sqrt(distSq);
+                    float push = (minDist - dist) * 0.5f;
+                    float nx = dx / dist;
+                    float ny = dy / dist;
+                    a.setPosition(a.getX() - nx * push, a.getY() - ny * push);
+                    b.setPosition(b.getX() + nx * push, b.getY() + ny * push);
+                    gridArena.clampToIsometricStage(a);
+                    gridArena.clampToIsometricStage(b);
+                }
             }
         }
 

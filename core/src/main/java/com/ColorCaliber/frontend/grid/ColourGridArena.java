@@ -1,5 +1,6 @@
 package com.ColorCaliber.frontend.grid;
 
+import com.ColorCaliber.frontend.entity.Entity;
 import com.ColorCaliber.frontend.entity.Player;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
@@ -146,11 +147,11 @@ public class ColourGridArena {
     }
 
     /**
-     * Prevents the player from walking off the floating isometric diamond stage.
+     * Prevents an entity from walking off the floating isometric diamond stage.
      */
-    public void clampToIsometricStage(Player player) {
-        float relX = player.getCenterX() - originX;
-        float relY = (player.getY() + 4f) - originY;
+    public void clampToIsometricStage(Entity entity) {
+        float relX = entity.getCenterX() - originX;
+        float relY = (entity.getY() + 4f) - originY;
 
         float colF = (relY / halfH + relX / halfW) * 0.5f;
         float rowF = (relY / halfH - relX / halfW) * 0.5f;
@@ -164,7 +165,7 @@ public class ColourGridArena {
             float newRelY = (clampedCol + clampedRow) * halfH;
             float newCenterX = originX + newRelX;
             float newFeetY = originY + newRelY;
-            player.setPosition(newCenterX - player.getWidth() * 0.5f, newFeetY - 4f);
+            entity.setPosition(newCenterX - entity.getWidth() * 0.5f, newFeetY - 4f);
         }
     }
 

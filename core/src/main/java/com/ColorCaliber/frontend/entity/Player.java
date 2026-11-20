@@ -8,7 +8,9 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Disposable;
 
 /**
@@ -40,8 +42,12 @@ public class Player extends Entity implements Disposable {
 
     // Dodge Roll state & parameters
     public static final float ROLL_DISTANCE_TILES = 1.5f;
-    public static final float ROLL_DURATION = 0.26f;
+    public static final float ROLL_DURATION = 0.16f;
     public static final float ROLL_COOLDOWN = 0.10f;
+    public static final float SCREEN_Y_DASH_MULTIPLIER = 1.35f;
+
+    private final Vector2 dashDir = new Vector2();
+    private final Vector2 dashDelta = new Vector2();
 
     private boolean isDodgeRolling;
     private float rollTimer;
@@ -75,7 +81,7 @@ public class Player extends Entity implements Disposable {
         super(startX, startY, DEFAULT_SIZE, DEFAULT_SIZE, new Color(0.2f, 0.9f, 0.35f, 1f));
         this.arenaWidth = arenaWidth;
         this.arenaHeight = arenaHeight;
-        this.maxHp = 100f;
+        this.maxHp = 500f;
         this.hp = maxHp;
         this.speedMultiplier = 1f;
         this.aimAngleRad = MathUtils.PI * 0.5f; // facing straight up by default
@@ -206,29 +212,20 @@ public class Player extends Entity implements Disposable {
         this.rollDirX = signX;
         this.rollDirY = signY;
 
-        // Roll displacement vectors with isometric perspective compensation:
-        // In uncompensated 2:1 projection, vertical is 50% of horizontal (48px vs 96px),
-        // which makes vertical rolls cover less ground than normal walking (67.2px) and feel sluggish.
-        // We apply isometric perspective compensation:
-        // - Pure Vertical (W / S): 80px (fast, responsive, clears hazards & bullets)
-        // - Pure Horizontal (A / D): 100px
-        // - Diagonals (W+D, W+A, etc.): (72px, 48px) -> magnitude ~86.5px
-        float dx = 0f;
-        float dy = 0f;
+        // Normalize 8-way screen input first so all directions start at unit length 1.0f,
+        // then apply 1.35f vertical compensation for the 2:1 rotated diamond grid:
+        // - Horizontal: 1.5 grid diagonals (96px)
+        // - Vertical: ~2.025 grid diagonals (64.8px)
+        dashDir.set(signX, signY).nor();
+        float horizontalDashDist = ROLL_DISTANCE_TILES * ISO_TILE_WIDTH;
+        float verticalDashDist = ROLL_DISTANCE_TILES * ISO_TILE_HEIGHT * SCREEN_Y_DASH_MULTIPLIER;
+        dashDelta.set(
+            dashDir.x * horizontalDashDist,
+            dashDir.y * verticalDashDist
+        );
 
-        if (signX != 0 && signY != 0) {
-            dx = signX * 72f;
-            dy = signY * 48f;
-        } else if (signX != 0) {
-            dx = signX * 100f;
-            dy = 0f;
-        } else if (signY != 0) {
-            dx = 0f;
-            dy = signY * 80f;
-        }
-
-        this.rollTargetX = MathUtils.clamp(x + dx, 0f, arenaWidth - width);
-        this.rollTargetY = MathUtils.clamp(y + dy, 0f, arenaHeight - height);
+        this.rollTargetX = MathUtils.clamp(x + dashDelta.x, 0f, arenaWidth - width);
+        this.rollTargetY = MathUtils.clamp(y + dashDelta.y, 0f, arenaHeight - height);
 
         // Initialize ghost trail
         for (int i = 0; i < TRAIL_COUNT; i++) {
@@ -267,8 +264,8 @@ public class Player extends Entity implements Disposable {
             rollTimer += delta;
             float progress = Math.min(1f, rollTimer / ROLL_DURATION);
 
-            // Quadratic ease-out for a punchy, responsive roll
-            float ease = 1f - (1f - progress) * (1f - progress);
+            // Front-loaded cubic ease-out so the burst of speed happens on Frame 1
+            float ease = Interpolation.pow3Out.apply(progress);
             x = MathUtils.lerp(rollStartX, rollTargetX, ease);
             y = MathUtils.lerp(rollStartY, rollTargetY, ease);
 
@@ -333,7 +330,7 @@ public class Player extends Entity implements Disposable {
         hp -= amount;
         hitFlashTimer = 0.15f;
         if (hp <= 0f) {
-            hp = maxHp; // Automatically replenish so game keeps running
+            hp = 0f;
         }
     }
 
@@ -428,7 +425,7 @@ public class Player extends Entity implements Disposable {
     }
 
     public boolean isDead() {
-        return false; // Never triggers game over, keeps running
+        return hp <= 0f;
     }
 
     public float getHp() {

@@ -7,10 +7,15 @@ import com.ColorCaliber.frontend.manager.GameManager;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
@@ -34,6 +39,8 @@ public class Main extends ApplicationAdapter {
     private Viewport viewport;
     private ShapeRenderer shapeRenderer;
     private SpriteBatch spriteBatch;
+    private BitmapFont font;
+    private GlyphLayout glyphLayout;
     private GameManager gameManager;
     private Texture crosshairTexture;
 
@@ -49,6 +56,9 @@ public class Main extends ApplicationAdapter {
 
         shapeRenderer = new ShapeRenderer();
         spriteBatch = new SpriteBatch();
+        font = new BitmapFont();
+        font.getData().setScale(1.4f);
+        glyphLayout = new GlyphLayout();
 
         // Load custom crosshair PNG
         if (Gdx.files != null && Gdx.files.internal("crosshair.png").exists()) {
@@ -73,6 +83,13 @@ public class Main extends ApplicationAdapter {
         // Convert screen mouse coordinates to world coordinates via Viewport
         mouseWorldPos.set(Gdx.input.getX(), Gdx.input.getY(), 0f);
         viewport.unproject(mouseWorldPos);
+
+        if (gameManager.getGameState() != GameManager.GameState.PLAYING) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+                gameManager.startNewGame();
+            }
+            return;
+        }
 
         // Controllable 4-directional movement (WASD or Arrow Keys)
         float moveX = 0f;
@@ -112,6 +129,8 @@ public class Main extends ApplicationAdapter {
         camera.update();
 
         // 1. Render Grid Arena, Enemies, and Bullets via ShapeRenderer
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
@@ -142,13 +161,60 @@ public class Main extends ApplicationAdapter {
         // Fallback shape if sprite texture is not loaded
         gameManager.getPlayer().render(shapeRenderer);
 
+        // Player HUD Health Bar (top-left)
+        float hudBarX = 24f;
+        float hudBarY = GameManager.WORLD_HEIGHT - 46f;
+        float hudBarW = 240f;
+        float hudBarH = 22f;
+        float hpRatio = player.getMaxHp() > 0f
+            ? MathUtils.clamp(player.getHp() / player.getMaxHp(), 0f, 1f)
+            : 0f;
+
+        shapeRenderer.setColor(0.08f, 0.09f, 0.12f, 0.9f);
+        shapeRenderer.rect(hudBarX - 2f, hudBarY - 2f, hudBarW + 4f, hudBarH + 4f);
+        shapeRenderer.setColor(0.25f, 0.08f, 0.08f, 0.9f);
+        shapeRenderer.rect(hudBarX, hudBarY, hudBarW, hudBarH);
+        shapeRenderer.setColor(1f - hpRatio * 0.75f, 0.2f + hpRatio * 0.75f, 0.25f, 1f);
+        shapeRenderer.rect(hudBarX, hudBarY, hudBarW * hpRatio, hudBarH);
+
+        // Game Over overlay
+        if (gameManager.getGameState() == GameManager.GameState.GAME_OVER) {
+            shapeRenderer.setColor(0f, 0f, 0f, 0.65f);
+            shapeRenderer.rect(0f, 0f, GameManager.WORLD_WIDTH, GameManager.WORLD_HEIGHT);
+        }
+
         shapeRenderer.end();
 
-        // 2. Render Player Sprite Animation & Crosshair via SpriteBatch
+        // 2. Render Player Sprite Animation, HUD Text & Crosshair via SpriteBatch
         spriteBatch.setProjectionMatrix(camera.combined);
         spriteBatch.begin();
 
         gameManager.getPlayer().render(spriteBatch);
+
+        // HUD Health Text
+        font.setColor(Color.WHITE);
+        font.getData().setScale(1.1f);
+        String hpText = "HP: " + (int) Math.ceil(player.getHp()) + " / " + (int) player.getMaxHp();
+        font.draw(spriteBatch, hpText, hudBarX + 8f, hudBarY + 17f);
+
+        // Game Over Text
+        if (gameManager.getGameState() == GameManager.GameState.GAME_OVER) {
+            font.getData().setScale(2.6f);
+            font.setColor(1f, 0.25f, 0.25f, 1f);
+            String title = "GAME OVER";
+            glyphLayout.setText(font, title);
+            font.draw(spriteBatch, title,
+                (GameManager.WORLD_WIDTH - glyphLayout.width) * 0.5f,
+                GameManager.WORLD_HEIGHT * 0.56f);
+
+            font.getData().setScale(1.4f);
+            font.setColor(Color.WHITE);
+            String prompt = "Press R to Restart";
+            glyphLayout.setText(font, prompt);
+            font.draw(spriteBatch, prompt,
+                (GameManager.WORLD_WIDTH - glyphLayout.width) * 0.5f,
+                GameManager.WORLD_HEIGHT * 0.46f);
+        }
 
         // Render Crosshair PNG at Cursor Position
         if (crosshairTexture != null) {
@@ -173,6 +239,9 @@ public class Main extends ApplicationAdapter {
     public void dispose() {
         shapeRenderer.dispose();
         spriteBatch.dispose();
+        if (font != null) {
+            font.dispose();
+        }
         if (crosshairTexture != null) {
             crosshairTexture.dispose();
         }
