@@ -52,6 +52,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
     private int highScore;
 
     private int enemiesRemainingToSpawn;
+    private int spawnPhase;
     private float enemySpawnTimer;
     private float roundBannerTimer;
     private String statusNotification;
@@ -104,9 +105,28 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         gridArena.generatePatternForRound(1, player.getCenterX(), player.getCenterY());
 
         this.enemiesRemainingToSpawn = 0;
+        this.spawnPhase = 1;
         this.enemySpawnTimer = 0f;
 
         ensureThreeEnemies();
+    }
+
+    private void spawnFiveEnemies() {
+        float[] spawnXs = new float[] {
+            ARENA_WIDTH * 0.30f - 16f,
+            ARENA_WIDTH * 0.40f - 16f,
+            ARENA_WIDTH * 0.50f - 16f,
+            ARENA_WIDTH * 0.60f - 16f,
+            ARENA_WIDTH * 0.70f - 16f
+        };
+        float spawnY = 540f;
+
+        for (float spawnX : spawnXs) {
+            Enemy enemy = enemyPool.spawnEnemy(EnemyType.SHOOTER, spawnX, spawnY, 1, ARENA_WIDTH, ARENA_HEIGHT);
+            if (enemy != null) {
+                gridArena.clampToIsometricStage(enemy);
+            }
+        }
     }
 
     private void ensureThreeEnemies() {
@@ -261,8 +281,11 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         bulletPool.cleanupInactive();
         enemyPool.cleanupInactive();
 
-        // 8. Keep running continuously: ensure 3 enemies remain active, no game over or victory screens
-        ensureThreeEnemies();
+        // 8. Phase transition: once all 3 Phase 1 enemies die, immediately spawn 5 enemies for Phase 2
+        if (spawnPhase == 1 && enemyPool.getActiveCount() == 0) {
+            spawnPhase = 2;
+            spawnFiveEnemies();
+        }
     }
 
     private void handleCollisions() {
