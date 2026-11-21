@@ -12,7 +12,7 @@ public class SimpleWeapon extends Weapon {
     private static final Color BULLET_COLOR = new Color(0.25f, 0.98f, 0.45f, 1f);
 
     public SimpleWeapon() {
-        super("Straight Blaster", 0.0f, 30f, 580f);
+        super("Straight Blaster", 0.0f, 20f, 580f);
     }
 
     @Override
