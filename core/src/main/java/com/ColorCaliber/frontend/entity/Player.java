@@ -42,7 +42,7 @@ public class Player extends Entity implements Disposable {
 
     // Dodge Roll state & parameters
     public static final float ROLL_DISTANCE_TILES = 1.5f;
-    public static final float ROLL_DURATION = 0.16f;
+    public static final float ROLL_DURATION = 0.24f;
     public static final float ROLL_COOLDOWN = 0.10f;
     public static final float SCREEN_Y_DASH_MULTIPLIER = 1.35f;
 
