@@ -13,9 +13,9 @@ gradle-app.setting
 /headless/build/
 /server/build/
 /shared/build/
-.gradle/
-build/
 *.log
+gradle/caches/
+gradle/daemon/
 
 ## Java:
 *.class
