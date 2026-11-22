@@ -16,6 +16,10 @@ gradle-app.setting
 .gradle/
 build/
 *.log
+gradle/caches/
+gradle/daemon/
+gradle/native/
+gradle/wrapper/dists/
 
 ## Java:
 *.class
