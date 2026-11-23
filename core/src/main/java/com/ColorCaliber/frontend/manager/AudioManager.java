@@ -113,6 +113,14 @@ public class AudioManager implements Disposable {
 
     // --- Background Music ---
 
+    public void playLevelMusic() {
+        if (Gdx.files != null && Gdx.files.internal("music/BGM_Level_1.mp3").exists()) {
+            playMusic("music/BGM_Level_1.mp3", true);
+        } else {
+            playMusic("BGM_Level_1.mp3", true);
+        }
+    }
+
     public void playMusic(String internalPath, boolean loop) {
         if (internalPath == null) return;
 

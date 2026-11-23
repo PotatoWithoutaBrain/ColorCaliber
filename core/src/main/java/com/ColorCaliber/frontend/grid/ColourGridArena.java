@@ -18,8 +18,8 @@ import com.badlogic.gdx.math.MathUtils;
 public class ColourGridArena {
     public static final float TILE_WIDTH = 64f;
     public static final float TILE_HEIGHT = 32f;
-    public static final int DEFAULT_COLS = 18;
-    public static final int DEFAULT_ROWS = 18;
+    public static final int DEFAULT_COLS = 19;
+    public static final int DEFAULT_ROWS = 19;
 
     private final int cols;
     private final int rows;

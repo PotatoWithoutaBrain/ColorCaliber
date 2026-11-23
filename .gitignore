@@ -13,13 +13,14 @@ gradle-app.setting
 /headless/build/
 /server/build/
 /shared/build/
-.gradle/
-build/
 *.log
 gradle/caches/
 gradle/daemon/
+<<<<<<< HEAD
+=======
 gradle/native/
 gradle/wrapper/dists/
+>>>>>>> origin/main
 
 ## Java:
 *.class

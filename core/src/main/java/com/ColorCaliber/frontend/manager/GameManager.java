@@ -7,6 +7,10 @@ import com.ColorCaliber.frontend.entity.Player;
 import com.ColorCaliber.frontend.grid.ColourGridArena;
 import com.ColorCaliber.frontend.pool.BulletPool;
 import com.ColorCaliber.frontend.pool.EnemyPool;
+import com.ColorCaliber.frontend.state.GameOverState;
+import com.ColorCaliber.frontend.state.GameStateManager;
+import com.ColorCaliber.frontend.state.PlayingState;
+import com.ColorCaliber.frontend.state.VictoryState;
 import com.badlogic.gdx.math.MathUtils;
 
 import java.util.List;
@@ -35,6 +39,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
     // Singleton instance
     private static GameManager instance;
 
+    private final GameStateManager stateManager;
     private GameState gameState;
     private final Player player;
     private final ColourGridArena gridArena;
@@ -60,6 +65,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
     // Private constructor to enforce Singleton pattern
     private GameManager() {
+        this.stateManager = new GameStateManager();
         this.bulletPool = new BulletPool();
         this.enemyPool = new EnemyPool();
         this.gridArena = new ColourGridArena(ARENA_WIDTH, ARENA_HEIGHT);
@@ -94,6 +100,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         player.reset(ARENA_WIDTH * 0.5f - 16f, 220f);
 
         setupRound(currentRound);
+        stateManager.setState(new PlayingState(this));
     }
 
     private void setupRound(int round) {
@@ -204,10 +211,10 @@ public class GameManager implements ColourGridArena.BlueGridListener {
             roundBannerTimer -= delta;
         }
 
-        if (gameState != GameState.PLAYING) {
-            return;
-        }
+        stateManager.update(delta);
+    }
 
+    public void updateGameplay(float delta) {
         elapsedTime += delta;
 
         // 1. Update Colour Grid Arena & apply grid effects to Player
@@ -285,6 +292,8 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         if (spawnPhase == 1 && enemyPool.getActiveCount() == 0) {
             spawnPhase = 2;
             spawnFiveEnemies();
+        } else if (spawnPhase == 2 && enemyPool.getActiveCount() == 0) {
+            onVictory();
         }
     }
 
@@ -360,7 +369,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         }
     }
 
-    private void onVictory() {
+    public void onVictory() {
         this.gameState = GameState.VICTORY;
 
         // Score is recorded based on how fast all rounds are completed + Blue Grid points
@@ -374,9 +383,11 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         if (finalScore > highScore) {
             highScore = finalScore;
         }
+
+        stateManager.setState(new VictoryState(this));
     }
 
-    private void onPlayerDeath() {
+    public void onPlayerDeath() {
         this.gameState = GameState.GAME_OVER;
         int roundBonus = (currentRound - 1) * 800;
         int pointBonus = blueGridPoints * 200;
@@ -384,6 +395,8 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         if (finalScore > highScore) {
             highScore = finalScore;
         }
+
+        stateManager.setState(new GameOverState(this));
     }
 
     private void showNotification(String message, float duration) {
@@ -391,7 +404,16 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         this.notificationTimer = duration;
     }
 
+    public GameStateManager getStateManager() {
+        return stateManager;
+    }
+
     public GameState getGameState() {
+        if (stateManager != null) {
+            if (stateManager.getCurrentState() instanceof PlayingState) return GameState.PLAYING;
+            if (stateManager.getCurrentState() instanceof GameOverState) return GameState.GAME_OVER;
+            if (stateManager.getCurrentState() instanceof VictoryState) return GameState.VICTORY;
+        }
         return gameState;
     }
 
