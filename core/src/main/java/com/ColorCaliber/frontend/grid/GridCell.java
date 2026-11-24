@@ -123,6 +123,30 @@ public class GridCell {
             return;
         }
 
+        // 5. Diamond Collectible Tile
+        if (currentType == GridType.DIAMOND) {
+            float pulse = 0.85f + 0.15f * (float) Math.sin(pulseTimer * 1.6f);
+            // Outer glowing cyan diamond tile
+            shapeRenderer.setColor(0.15f * pulse, 0.78f * pulse, 1f, 1f);
+            shapeRenderer.triangle(isoX, isoY + hh, isoX - hw, isoY, isoX + hw, isoY);
+            shapeRenderer.triangle(isoX, isoY - hh, isoX - hw, isoY, isoX + hw, isoY);
+
+            // Mid faceted diamond
+            float midHw = hw * 0.62f;
+            float midHh = hh * 0.62f;
+            shapeRenderer.setColor(0.55f, 0.96f, 1f, 1f);
+            shapeRenderer.triangle(isoX, isoY + midHh, isoX - midHw, isoY, isoX + midHw, isoY);
+            shapeRenderer.triangle(isoX, isoY - midHh, isoX - midHw, isoY, isoX + midHw, isoY);
+
+            // Bright white sparkle core
+            float coreHw = hw * 0.28f;
+            float coreHh = hh * 0.28f;
+            shapeRenderer.setColor(1f, 1f, 1f, 1f);
+            shapeRenderer.triangle(isoX, isoY + coreHh, isoX - coreHw, isoY, isoX + coreHw, isoY);
+            shapeRenderer.triangle(isoX, isoY - coreHh, isoX - coreHw, isoY, isoX + coreHw, isoY);
+            return;
+        }
+
         // Default
         shapeRenderer.setColor(baseColor);
         shapeRenderer.triangle(isoX, isoY + hh, isoX - hw, isoY, isoX + hw, isoY);

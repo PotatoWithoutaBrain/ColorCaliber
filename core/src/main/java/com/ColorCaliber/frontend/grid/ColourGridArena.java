@@ -20,6 +20,10 @@ public class ColourGridArena {
     public static final float TILE_HEIGHT = 32f;
     public static final int DEFAULT_COLS = 19;
     public static final int DEFAULT_ROWS = 19;
+    public static final int TOTAL_DIAMONDS_PER_ROUND = 20;
+
+    private static final float SWEEP_SPEED = 7.5f;
+    private static final float SWEEP_HALF_WIDTH = 0.5f;
 
     private final int cols;
     private final int rows;
@@ -34,8 +38,17 @@ public class ColourGridArena {
     private int currentRound;
     private String currentPatternName;
 
+    // Alternating red sweep state: true = vertical (left -> right), false = horizontal (top -> bottom)
+    private boolean verticalSweepTurn;
+    private float sweepPosition;
+
+    // One-by-one collectible diamond tile state
+    private int diamondsCollected;
+    private GridCell activeDiamondCell;
+
     public interface BlueGridListener {
         void onBlueGridCollected();
+        void onDiamondCollected(int collectedCount, int totalCount);
     }
 
     public ColourGridArena(float arenaWidth, float arenaHeight) {
@@ -61,16 +74,22 @@ public class ColourGridArena {
         }
 
         this.currentRound = 1;
-        this.currentPatternName = "Isometric Stage: Green & Red Grids";
+        this.currentPatternName = "Isometric Stage: Alternating Red Sweeps";
+        resetSweepState();
+    }
+
+    private void resetSweepState() {
+        this.verticalSweepTurn = true;
+        this.sweepPosition = -(rows - 1) - SWEEP_HALF_WIDTH;
     }
 
     /**
-     * Generates a balanced isometric arena pattern with Red hazard clusters
-     * and Green heal zones.
+     * Generates the isometric arena pattern with Green heal zones
+     * and initializes the alternating vertical/horizontal Red hazard sweeps.
      */
     public void generatePatternForRound(int round, float playerCenterX, float playerCenterY) {
         this.currentRound = 1;
-        this.currentPatternName = "Isometric Stage: Green & Red Grids";
+        this.currentPatternName = "Isometric Stage: Alternating Red Sweeps";
 
         // Reset all tiles to NORMAL floor
         for (int c = 0; c < cols; c++) {
@@ -79,33 +98,51 @@ public class ColourGridArena {
             }
         }
 
-        // Place Red Hazard clusters symmetrically on the isometric stage
-        setRegion(3, 4, 3, 2, GridType.RED);
-        setRegion(10, 4, 3, 2, GridType.RED);
-        setRegion(3, 10, 3, 2, GridType.RED);
-        setRegion(10, 10, 3, 2, GridType.RED);
-        setRegion(7, 7, 2, 2, GridType.RED);
-
         // Place Green Heal zones on the perimeter corners
         setRegion(1, 1, 2, 2, GridType.GREEN);
         setRegion(cols - 3, 1, 2, 2, GridType.GREEN);
         setRegion(1, rows - 3, 2, 2, GridType.GREEN);
         setRegion(cols - 3, rows - 3, 2, 2, GridType.GREEN);
 
-        // Ensure safe zone around player starting position
-        GridCell playerCell = getCellAt(playerCenterX, playerCenterY);
-        if (playerCell != null) {
-            int pc = playerCell.getCol();
-            int pr = playerCell.getRow();
-            for (int dc = -1; dc <= 1; dc++) {
-                for (int dr = -1; dr <= 1; dr++) {
-                    int nc = pc + dc;
-                    int nr = pr + dr;
-                    if (nc >= 0 && nc < cols && nr >= 0 && nr < rows) {
-                        if (cells[nc][nr].getCurrentType() == GridType.RED) {
-                            cells[nc][nr].setPatternType(GridType.NORMAL);
-                        }
-                    }
+        // Start with the vertical sweep from left to right
+        resetSweepState();
+        this.diamondsCollected = 0;
+        this.activeDiamondCell = null;
+        spawnNextDiamond(playerCenterX, playerCenterY);
+        applyActiveRedSweep();
+    }
+
+    private void spawnNextDiamond(float avoidWorldX, float avoidWorldY) {
+        if (diamondsCollected >= TOTAL_DIAMONDS_PER_ROUND) {
+            activeDiamondCell = null;
+            return;
+        }
+
+        GridCell avoidCell = getCellAt(avoidWorldX, avoidWorldY);
+
+        for (int attempt = 0; attempt < 100; attempt++) {
+            int c = MathUtils.random(0, cols - 1);
+            int r = MathUtils.random(0, rows - 1);
+            GridCell candidate = cells[c][r];
+            if (candidate.getBaseType() == GridType.GREEN) {
+                continue;
+            }
+            if (avoidCell != null && candidate == avoidCell) {
+                continue;
+            }
+            candidate.setPatternType(GridType.DIAMOND);
+            activeDiamondCell = candidate;
+            return;
+        }
+
+        // Fallback deterministic scan if random attempts collided
+        for (int c = 0; c < cols; c++) {
+            for (int r = 0; r < rows; r++) {
+                GridCell candidate = cells[c][r];
+                if (candidate.getBaseType() != GridType.GREEN && candidate != avoidCell) {
+                    candidate.setPatternType(GridType.DIAMOND);
+                    activeDiamondCell = candidate;
+                    return;
                 }
             }
         }
@@ -125,6 +162,9 @@ public class ColourGridArena {
         // Clamp player smoothly to the isometric diamond stage
         clampToIsometricStage(player);
 
+        // Advance alternating vertical/horizontal red sweep
+        updateRedSweep(delta);
+
         // Update cell visual timers
         for (int c = 0; c < cols; c++) {
             for (int r = 0; r < rows; r++) {
@@ -132,15 +172,71 @@ public class ColourGridArena {
             }
         }
 
+        // Check diamond tile collection under player's feet
+        GridCell feetCell = getCellAt(player.getCenterX(), player.getY() + 4f);
+        if (feetCell != null && feetCell == activeDiamondCell) {
+            activeDiamondCell.setPatternType(GridType.NORMAL);
+            activeDiamondCell = null;
+            diamondsCollected++;
+            if (listener != null) {
+                listener.onDiamondCollected(diamondsCollected, TOTAL_DIAMONDS_PER_ROUND);
+            }
+            if (diamondsCollected < TOTAL_DIAMONDS_PER_ROUND) {
+                spawnNextDiamond(player.getCenterX(), player.getY() + 4f);
+            }
+            applyActiveRedSweep();
+        }
+
         // Apply effect of the grid cell directly under player's feet (only when not dodge rolling / invincible)
         if (!player.isDodgeRolling() && !player.isAirborne()) {
-            GridCell playerCell = getCellAt(player.getCenterX(), player.getY() + 4f);
-            if (playerCell != null) {
-                GridType type = playerCell.getCurrentType();
+            if (feetCell != null) {
+                GridType type = feetCell.getCurrentType();
                 if (type == GridType.RED) {
                     player.applyRedGridDamage(10f);
                 } else if (type == GridType.GREEN) {
                     player.heal(12f * delta);
+                }
+            }
+        }
+    }
+
+    private void updateRedSweep(float delta) {
+        if (verticalSweepTurn) {
+            // Vertical column moves smoothly left -> right along isoX (c - r)
+            sweepPosition += SWEEP_SPEED * delta;
+            float maxDiagX = (cols - 1) + SWEEP_HALF_WIDTH;
+            if (sweepPosition > maxDiagX) {
+                verticalSweepTurn = false;
+                sweepPosition = (cols - 1) + (rows - 1) + SWEEP_HALF_WIDTH;
+            }
+        } else {
+            // Horizontal column moves smoothly top -> bottom along isoY (c + r)
+            sweepPosition -= SWEEP_SPEED * delta;
+            float minDiagY = -SWEEP_HALF_WIDTH;
+            if (sweepPosition < minDiagY) {
+                verticalSweepTurn = true;
+                sweepPosition = -(rows - 1) - SWEEP_HALF_WIDTH;
+            }
+        }
+
+        applyActiveRedSweep();
+    }
+
+    private void applyActiveRedSweep() {
+        for (int c = 0; c < cols; c++) {
+            for (int r = 0; r < rows; r++) {
+                GridCell cell = cells[c][r];
+                // Green heal zones and active diamond tiles never change to red when a sweep passes over them
+                if (cell.getBaseType() == GridType.GREEN || cell.getBaseType() == GridType.DIAMOND) {
+                    cell.revertToBaseType();
+                    continue;
+                }
+
+                float cellCoord = verticalSweepTurn ? (c - r) : (c + r);
+                if (Math.abs(cellCoord - sweepPosition) <= SWEEP_HALF_WIDTH) {
+                    cell.setCurrentType(GridType.RED);
+                } else {
+                    cell.revertToBaseType();
                 }
             }
         }

@@ -48,6 +48,8 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
     private int currentRound;
     private int blueGridPoints;
+    private int diamondsCollected;
+    private int score;
     private int nextLevelUpPointTarget;
     private boolean weaponChoiceAvailable;
 
@@ -90,6 +92,8 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         this.gameState = GameState.PLAYING;
         this.currentRound = 1;
         this.blueGridPoints = 0;
+        this.diamondsCollected = 0;
+        this.score = 0;
         this.nextLevelUpPointTarget = 999;
         this.weaponChoiceAvailable = false;
         this.elapsedTime = 0f;
@@ -219,6 +223,9 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
         // 1. Update Colour Grid Arena & apply grid effects to Player
         gridArena.update(delta, player, this);
+        if (getGameState() != GameState.PLAYING) {
+            return;
+        }
 
         // 2. Update Player & Weapon firing
         player.update(delta);
@@ -289,11 +296,10 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         enemyPool.cleanupInactive();
 
         // 8. Phase transition: once all 3 Phase 1 enemies die, immediately spawn 5 enemies for Phase 2
+        // Round only ends when all 20 diamond tiles are collected.
         if (spawnPhase == 1 && enemyPool.getActiveCount() == 0) {
             spawnPhase = 2;
             spawnFiveEnemies();
-        } else if (spawnPhase == 2 && enemyPool.getActiveCount() == 0) {
-            onVictory();
         }
     }
 
@@ -355,6 +361,18 @@ public class GameManager implements ColourGridArena.BlueGridListener {
         }
     }
 
+    @Override
+    public void onDiamondCollected(int collectedCount, int totalCount) {
+        this.diamondsCollected = collectedCount;
+        this.score += 100;
+        AudioManager.getInstance().playUpgradeSound();
+        showNotification("+100! Diamonds: " + collectedCount + " / " + totalCount, 1.5f);
+
+        if (collectedCount >= totalCount) {
+            onVictory();
+        }
+    }
+
     public void selectWeaponUpgrade(int option) {
         if (!weaponChoiceAvailable || player.isWeaponUpgraded()) return;
 
@@ -371,11 +389,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
     public void onVictory() {
         this.gameState = GameState.VICTORY;
-
-        // Score is recorded based on how fast all rounds are completed + Blue Grid points
-        int speedScore = Math.max(1000, (int) (12000 - elapsedTime * 65f));
-        int pointBonus = blueGridPoints * 250;
-        this.finalScore = speedScore + pointBonus;
+        this.finalScore = this.score;
 
         if (bestCompletionTime < 0f || elapsedTime < bestCompletionTime) {
             bestCompletionTime = elapsedTime;
@@ -389,9 +403,7 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
     public void onPlayerDeath() {
         this.gameState = GameState.GAME_OVER;
-        int roundBonus = (currentRound - 1) * 800;
-        int pointBonus = blueGridPoints * 200;
-        this.finalScore = roundBonus + pointBonus;
+        this.finalScore = this.score;
         if (finalScore > highScore) {
             highScore = finalScore;
         }
@@ -439,6 +451,18 @@ public class GameManager implements ColourGridArena.BlueGridListener {
 
     public int getBlueGridPoints() {
         return blueGridPoints;
+    }
+
+    public int getDiamondsCollected() {
+        return diamondsCollected;
+    }
+
+    public int getTotalDiamonds() {
+        return ColourGridArena.TOTAL_DIAMONDS_PER_ROUND;
+    }
+
+    public int getScore() {
+        return score;
     }
 
     public boolean isWeaponChoiceAvailable() {

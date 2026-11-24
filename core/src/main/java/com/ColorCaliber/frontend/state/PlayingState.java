@@ -142,6 +142,16 @@ public class PlayingState implements GameState {
         String hpText = "HP: " + (int) Math.ceil(player.getHp()) + " / " + (int) player.getMaxHp();
         font.draw(spriteBatch, hpText, hudBarX + 8f, hudBarY + 17f);
 
+        // 2b. Diamond Counter & Score HUD
+        font.getData().setScale(1.15f);
+        font.setColor(0.35f, 0.92f, 1f, 1f);
+        String diamondText = "Diamonds: " + gameManager.getDiamondsCollected() + " / " + gameManager.getTotalDiamonds();
+        font.draw(spriteBatch, diamondText, hudBarX, hudBarY - 12f);
+
+        font.setColor(Color.GOLD);
+        String scoreText = "Score: " + gameManager.getScore();
+        font.draw(spriteBatch, scoreText, hudBarX, hudBarY - 36f);
+
         // 3. Status notification (if active)
         String notification = gameManager.getStatusNotification();
         if (notification != null) {
