@@ -10,10 +10,11 @@ Lock in
 ### Added
 
 * Added CHANGELOG.md to track progress and contributions.
+* Added backend/ with the dependencies based on the Module 5 video
 
 ### Changed
 
-* -
+* Restructured the repository to have two separate directories, frontend/ and backend/
 
 ### Fixed
 
