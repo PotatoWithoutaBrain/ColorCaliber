@@ -11,6 +11,8 @@ Lock in
 
 * Connected Spring Boot backend to Supabase PostgreSQL via Session Pooler.
 * Added JPA entity models (Player, Weapon, Score) to generate players, weapons, and scores tables with relational mappings.
+* Added PlayerRepository, WeaponRepository, and ScoreRepository
+  
 ### Changed
 
 * Updated backend/src/main/resources/application.properties to configure Supabase datasource and import application-local.properties.
