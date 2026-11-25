@@ -1,6 +1,0 @@
-crosshair.png
-crosshair_raw.png
-crosshair_white.png
-libgdx.png
-music/BGM_Level_1.mp3
-skeleton_walk.png
